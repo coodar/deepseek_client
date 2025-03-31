@@ -9,7 +9,8 @@ from handler.color_handler import ColorHandler
 DebugHandler.debug(f"json模块已导入，版本: {json.__version__}")
 
 class CommandHandler:
-    def __init__(self):
+    def __init__(self, chat_handler=None):
+        self.chat_handler = chat_handler
         self.commands = {
             '/quit': self.handle_quit,
             '/stream': self.handle_stream_mode,
@@ -70,7 +71,10 @@ class CommandHandler:
         return True
         
     def handle_multi(self) -> bool:
-        """处理多行输入命令 (仅作为占位符，实际处理在ChatHandler中)"""
+        """处理多行输入命令"""
+        if self.chat_handler:
+            self.chat_handler.multi_mode = True
+            print(ColorHandler.system_text("已进入多行输入模式"))
         return True
     
     def add_command(self, command_name: str, command_func):

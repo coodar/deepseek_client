@@ -1,0 +1,3 @@
+[console_scripts]
+dscli = src.cli.deepseek_cli:main
+

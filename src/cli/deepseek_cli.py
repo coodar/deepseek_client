@@ -17,18 +17,18 @@ class DeepSeekCLI:
     def __init__(self):
         """初始化DeepSeek CLI客户端"""
         self.dialog_handler = ChatHandler()
-        self.command_handler = CommandHandler()
+        self.command_handler = CommandHandler(chat_handler=self.dialog_handler)
     
     def run(self):
         """运行CLI交互循环"""
         DebugHandler.debug(f"DeepSeekCLI 初始化完成，模型: {DEFAULT_MODEL}, 温度: {DEFAULT_TEMPERATURE}")
-        print(ColorHandler.system_text("输入'quit'退出交互"))
+        print(ColorHandler.system_text("输入'/quit'退出交互"))
         
         while True:
             # 处理多行输入模式
             if self.dialog_handler.multi_mode:
                 lines = []
-                print(ColorHandler.system_text("多行输入模式 (输入/eof结束):"))
+                # print(ColorHandler.system_text("多行输入模式 (输入/eof结束):"))
                 while True:
                     line = input(ColorHandler.user_text("> "))
                     if line.strip() == "/eof":  # 使用/eof结束输入
