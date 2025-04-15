@@ -9,6 +9,18 @@ class DebugHandler:
         :return: 是否处于调试模式
         """
         return cls._debug_mode
+        
+    @classmethod
+    def is_debug_enabled(cls) -> bool:
+        """获取当前调试模式状态（别名方法）
+        :return: 是否处于调试模式
+        """
+        return cls.is_debug_mode()
+    
+    @classmethod
+    def toggle_debug(cls) -> None:
+        """切换调试模式状态"""
+        cls._debug_mode = not cls._debug_mode
     
     @classmethod
     def set_debug_mode(cls, enabled: bool) -> None:
