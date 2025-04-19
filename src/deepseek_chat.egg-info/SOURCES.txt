@@ -5,13 +5,14 @@ src/__init__.py
 src/api/__init__.py
 src/api/deepseek_api.py
 src/cli/__init__.py
-src/cli/deepseek_cli.py
+src/cli/deepseek_client.py
 src/config/__init__.py
 src/config/setting.py
 src/deepseek_chat.egg-info/PKG-INFO
 src/deepseek_chat.egg-info/SOURCES.txt
 src/deepseek_chat.egg-info/dependency_links.txt
 src/deepseek_chat.egg-info/entry_points.txt
+src/deepseek_chat.egg-info/requires.txt
 src/deepseek_chat.egg-info/top_level.txt
 src/handler/__init__.py
 src/handler/chat_handler.py
