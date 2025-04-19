@@ -1,3 +1,0 @@
-[console_scripts]
-dscli = cli.deepseek_client:main
-
