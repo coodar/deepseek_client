@@ -5,7 +5,7 @@ setup(
     version="0.1.0",
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
-    install_requires=['requests'],
+    install_requires=['requests', 'urllib3<2.0'],
     author="coodar",
     author_email="coodar@gmail.com",
     description="A Python package for interacting with DeepSeek API",
