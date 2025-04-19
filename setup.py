@@ -20,7 +20,7 @@ setup(
     python_requires='>=3.6',
     entry_points={
         'console_scripts': [
-            'dscli=src.cli.deepseek_cli:main',
+            'dscli=cli.deepseek_client:main',
         ],
     },
     package_data={
