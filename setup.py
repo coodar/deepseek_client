@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="deepseek-chat",
-    version="0.1.2",
+    version="1.0.0",
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     install_requires=['requests', 'urllib3<2.0'],

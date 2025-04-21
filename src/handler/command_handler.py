@@ -3,8 +3,22 @@
 """
 import json
 from typing import List, Dict
-from handler.debug_handler import DebugHandler
-from handler.color_handler import ColorHandler
+
+# 尝试兼容包模式和开发模式的导入
+try:
+    # 包模式导入
+    from handler.debug_handler import DebugHandler
+    from handler.color_handler import ColorHandler
+except ImportError:
+    # 开发模式导入
+    import sys
+    from pathlib import Path
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+    
+    from src.handler.debug_handler import DebugHandler
+    from src.handler.color_handler import ColorHandler
 
 DebugHandler.debug(f"json模块已导入，版本: {json.__version__}")
 

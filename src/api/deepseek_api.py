@@ -2,7 +2,18 @@ import requests
 import os
 import json
 import logging
-from config.setting import BASE_URL
+
+# 尝试不同的导入路径，以支持开发模式和包模式
+try:
+    # 包模式导入
+    from config.setting import BASE_URL
+except ImportError:
+    try:
+        # 开发模式导入
+        from src.config.setting import BASE_URL
+    except ImportError:
+        # 如果都失败，设置默认值
+        BASE_URL = "https://api.deepseek.com/v1"
 
 logger = logging.getLogger(__name__)
 

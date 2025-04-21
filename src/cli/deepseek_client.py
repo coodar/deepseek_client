@@ -1,15 +1,28 @@
 import sys
 from pathlib import Path
 
-# 添加项目根目录到Python路径
-from handler.chat_handler import ChatHandler
-from handler.command_handler import CommandHandler
-from handler.color_handler import ColorHandler
-from api.deepseek_api import DeepSeekAPI
-from config.setting import DEFAULT_MODEL, DEFAULT_TEMPERATURE
-from handler.command_handler import CommandHandler
-from handler.debug_handler import DebugHandler
-from handler.color_handler import ColorHandler
+# 添加项目根目录到Python路径以兼容开发模式和包模式
+try:
+    # 尝试直接导入（包模式）
+    from handler.chat_handler import ChatHandler
+    from handler.command_handler import CommandHandler
+    from handler.color_handler import ColorHandler
+    from api.deepseek_api import DeepSeekAPI
+    from config.setting import DEFAULT_MODEL, DEFAULT_TEMPERATURE
+    from handler.debug_handler import DebugHandler
+except ImportError:
+    # 开发模式下调整导入路径
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent  # 获取项目根目录
+    sys.path.insert(0, str(project_root))  # 将项目根目录添加到Python路径
+    
+    # 重新导入
+    from src.handler.chat_handler import ChatHandler
+    from src.handler.command_handler import CommandHandler
+    from src.handler.color_handler import ColorHandler
+    from src.api.deepseek_api import DeepSeekAPI
+    from src.config.setting import DEFAULT_MODEL, DEFAULT_TEMPERATURE
+    from src.handler.debug_handler import DebugHandler
 
 class DeepSeekCLI:
     def __init__(self):
