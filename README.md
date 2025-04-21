@@ -11,10 +11,10 @@ pip install -e .
 ## 使用
 
 ```python
-from deepseek_chat import DeepSeekAPI
-
-api = DeepSeekAPI()
-# 使用API进行交互
+dscli
+or 
+cd /path/to/deepseek_chat 
+python3 src/cli/deepseek_client.py
 ```
 
 ## 功能
