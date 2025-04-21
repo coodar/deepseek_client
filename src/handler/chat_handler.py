@@ -38,7 +38,7 @@ class ChatHandler:
             try:
                 if stream:
                     full_reply = io.StringIO()
-                    DebugHandler.debug(f"开始获取流式回复")
+                    DebugHandler.debug(f"开始获取流式回复，使用模型: {self.model}")
                     try:
                         for chunk in self.api.chat_completion_stream(
                             messages=self.messages,
@@ -55,9 +55,25 @@ class ChatHandler:
                             if 'delta' not in first_choice or not isinstance(first_choice['delta'], dict):
                                 DebugHandler.debug("choice中缺少delta字段，跳过")
                                 continue
-                            chunk_content = first_choice['delta'].get('content', '')
-                            print(ColorHandler.assistant_text(chunk_content), end="", flush=True)
-                            full_reply.write(chunk_content)
+                            reasoning_chunk = first_choice['delta'].get('reasoning_content', '')
+                            content_chunk = first_choice['delta'].get('content', '')
+                            
+                            # 空值检查和处理
+                            DebugHandler.debug(f"获取推理内容: {repr(reasoning_chunk)} (长度{len(reasoning_chunk)}), 正式内容: {repr(content_chunk)} (长度{len(content_chunk)})")
+                            if not reasoning_chunk and not content_chunk:
+                                continue
+                            
+                            DebugHandler.debug(f"获取推理内容: {repr(reasoning_chunk)}, 正式内容: {repr(content_chunk)}")
+                            
+                            # 打印推理过程（灰色）和正式回答（原色）
+                            if self.model != 'deepseek-chat' and reasoning_chunk:
+                                print(ColorHandler.reasoning_text(f"{reasoning_chunk}"), end="", flush=True)
+                            if content_chunk:
+                                print(ColorHandler.assistant_text(f"{content_chunk}"), end="", flush=True)
+                            
+                            full_reply.write(content_chunk if self.model == 'deepseek-chat' else reasoning_chunk + content_chunk)
+                        
+                        # 更新验证逻辑
                         full_reply_str = full_reply.getvalue()
                         # 处理空响应的情况
                         if not full_reply_str.strip():
@@ -71,15 +87,16 @@ class ChatHandler:
                         DebugHandler.debug(f"流式请求出错: {str(e)}")
                         raise e
                 else:
-                    DebugHandler.debug("开始获取非流式回复")
+                    DebugHandler.debug(f"开始获取非流式回复，使用模型: {self.model}")
                     response = self.api.chat_completion(
                         messages=self.messages,
                         model=self.model,
                         temperature=self.temperature
                     )
-                    if not self.validate_response_structure(response):
+                    if not self.validate_response_structure(response, stream=False):
                         raise ValueError("无效的API响应结构")
-                    assistant_reply = response['choices'][0]['message']['content']
+                    message = response['choices'][0]['message']
+                    assistant_reply = message.get('content', '') if self.model == 'deepseek-chat' else message.get('reasoning_content', '') + message.get('content', '')
                     # 处理空响应的情况
                     if not assistant_reply:
                         assistant_reply = "抱歉，未能获取有效回复，请稍后重试"
@@ -98,14 +115,15 @@ class ChatHandler:
                 retry_count += 1
                 DebugHandler.debug(f"重试请求 (第{retry_count}次)")
     
-    def validate_response_structure(self, data: dict) -> bool:
+    def validate_response_structure(self, data: dict, stream: bool) -> bool:
         """验证API响应结构"""
         required_keys = {
             'choices': [
                 lambda x: isinstance(x, list) and len(x) > 0,
                 {
-                    'message': {
-                        'content': lambda x: isinstance(x, str)
+                    'delta' if stream else 'message': {
+                        'content': lambda x: isinstance(x, str),
+                        'reasoning_content': lambda x: isinstance(x, str) if self.model == 'deepseek-reasoner' else True
                     }
                 }
             ]

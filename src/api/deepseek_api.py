@@ -1,7 +1,10 @@
 import requests
 import os
 import json
-from config.setting import BASE_URL, API_KEY
+import logging
+from config.setting import BASE_URL
+
+logger = logging.getLogger(__name__)
 
 class DeepSeekAPI:
     @staticmethod
@@ -13,7 +16,7 @@ class DeepSeekAPI:
         api_key = os.getenv('DEEPSEEK_API_KEY')
         if not api_key:
             try:
-                api_key = API_KEY
+                raise ValueError("请使用环境变量DEEPSEEK_API_KEY或运行时输入API密钥")
             except Exception:
                 api_key = input('请输入DeepSeek API密钥: ')
         return api_key
@@ -39,10 +42,14 @@ class DeepSeekAPI:
         :return: 响应数据
         """
         url = f"{self.base_url}/{endpoint}"
+        # 添加调试日志
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+        logger.debug(f"API请求URL: {url}")
+        logger.debug(f"请求头: {headers}")
+        logger.debug(f"请求体: {data}")
         
         try:
             response = requests.request(
@@ -52,7 +59,15 @@ class DeepSeekAPI:
                 json=data
             )
             response.raise_for_status()
-            return response.json()
+            response_data = response.json()
+            return {
+                "choices": [{
+                    "message": {
+                        "reasoning_content": response_data.get('choices', [{}])[0].get('message', {}).get('reasoning_content', ''),
+                        "content": response_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+                    }
+                }]
+            }
         except requests.exceptions.RequestException as e:
             raise Exception(f"API请求失败: {str(e)}")
     
@@ -64,28 +79,63 @@ class DeepSeekAPI:
         :param temperature: 生成温度
         :return: API响应
         """
+
+        endpoint = "chat/completions"
+        
         data = {
             "model": model,
             "messages": messages,
             "temperature": temperature
         }
-        return self._make_request("chat/completions", data=data)
+        response = self._make_request(endpoint, data=data)
+        return {
+            "choices": [{
+                "message": {
+                    "reasoning_content": response.get('choices', [{}])[0].get('message', {}).get('reasoning_content', ''),
+                    "content": response.get('choices', [{}])[0].get('message', {}).get('content', '')
+                }
+            }]
+        }
         
     def chat_completion_stream(self, messages, model="deepseek-chat", temperature=0.7):
         """
         调用流式聊天补全API
         :param messages: 对话消息列表
-        :param model: 使用的模型名称
+        :param model: 使用的模型名称（支持 deepseek-chat 和 deepseek-reasoner）
         :param temperature: 生成温度
         :return: 生成器，每次yield一个响应块
         """
+        
+        if messages is None or not isinstance(messages, list) or len(messages) == 0:
+            raise ValueError("messages参数必须是有效的非空列表")
+        
+        # 清理消息格式
+        # 移除消息内容的JSON序列化，避免双重转义
+        # 校验消息角色合法性
+        prev_role = None
+        for msg in messages:
+            current_role = msg.get('role')
+            if not current_role or current_role not in ['system', 'user', 'assistant']:
+                raise ValueError(f"无效的消息角色: {current_role}，允许的角色: system/user/assistant")
+            
+            if prev_role == current_role:
+                raise ValueError(f"连续重复的消息角色: {current_role}，消息应当交替来自用户和助手")
+            
+            prev_role = current_role
+
+            if 'content' in msg:
+                if isinstance(msg['content'], dict):
+                    msg['content'] = json.dumps(msg['content'], ensure_ascii=False)
+                logger.debug(f"最终消息内容: {msg['content']}")
+        
         data = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
             "stream": True
         }
-        url = f"{self.base_url}/chat/completions"
+        endpoint = "chat/completions"
+        url = f"{self.base_url}/{endpoint}"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -94,7 +144,13 @@ class DeepSeekAPI:
         
         try:
             with requests.post(url, headers=headers, json=data, stream=True) as response:
+                logger.debug(f"响应状态码: {response.status_code}")
                 response.raise_for_status()
+                
+                if not response.headers.get('Content-Type','').startswith('text/event-stream'):
+                    logger.error(f"意外响应格式: {response.headers}")
+                    raise Exception("Invalid response format from API")
+                
                 for line in response.iter_lines():
                     if line:
                         decoded_line = line.decode('utf-8')
@@ -103,8 +159,23 @@ class DeepSeekAPI:
                             if json_str == '[DONE]':
                                 break
                             try:
-                                yield json.loads(json_str)
+                                chunk_data = json.loads(json_str)
+                                
+                                # 结构化响应数据
+                                yield {
+                                    "choices": [{
+                                        "delta": {
+                                            "reasoning_content": chunk_data.get('choices', [{}])[0].get('delta', {}).get('reasoning_content', ''),
+                                            "content": chunk_data.get('choices', [{}])[0].get('delta', {}).get('content', '')
+                                        }
+                                    }]
+                                }
                             except json.JSONDecodeError:
                                 continue
+        except requests.exceptions.HTTPError as e:
+            error_detail = f"HTTP状态码: {response.status_code if response else '无'}\n响应头: {response.headers if response else '无'}\n响应内容: {response.text if response else '无'}"
+            logger.error(f"流式API请求失败: {str(e)}\n请求头: {headers}\n请求体: {json.dumps(data)}\n{error_detail}")
+            raise Exception(f"流式API请求失败: {str(e)}") from e
         except requests.exceptions.RequestException as e:
-            raise Exception(f"流式API请求失败: {str(e)}")
+            logger.error(f"网络请求异常: {str(e)}")
+            raise Exception(f"网络请求异常: {str(e)}")

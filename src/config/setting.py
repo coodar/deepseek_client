@@ -13,4 +13,3 @@ AVAILABLE_MODELS = {
 
 DEFAULT_MODEL = "deepseek-chat"
 DEFAULT_TEMPERATURE = 0.7
-API_KEY = ""  # 请在此处填入您的DeepSeek API密钥

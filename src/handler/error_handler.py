@@ -26,8 +26,11 @@ class ErrorHandler:
         elif error_name == 'TimeoutError':
             return 'timeout_error'
         elif 'HTTPError' in error_name:
-            if hasattr(error, 'response') and getattr(error.response, 'status_code', None) == 401:
+            status_code = getattr(error.response, 'status_code', None)
+            if status_code == 401:
                 return 'auth_error'
+            elif status_code == 400:
+                return 'bad_request'
             return 'http_error'
         else:
             return 'unknown_error'
@@ -44,6 +47,7 @@ class ErrorHandler:
             'timeout_error': '超时错误: 请求超时',
             'http_error': f'HTTP错误: {str(error)}',
             'auth_error': '认证错误: API密钥无效或未设置，请检查config/setting.py中的API_KEY配置',
+            'bad_request': '无效请求参数: 请检查模型名称、消息格式和API端点',
             'unknown_error': f'未知错误: {str(error)}'
         }
         return messages.get(error_type, '未知错误')
@@ -57,7 +61,7 @@ class ErrorHandler:
         """
         if retry_count >= self.max_retries:
             return False
-        return error_type in ['connection_error', 'timeout_error', 'auth_error']
+        return error_type in ['connection_error', 'timeout_error', 'auth_error', 'bad_request']
     
     def handle_error(self, error: Exception, retry_count: int) -> Dict[str, Any]:
         """

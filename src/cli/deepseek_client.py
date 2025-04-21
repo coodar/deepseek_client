@@ -2,8 +2,6 @@ import sys
 from pathlib import Path
 
 # 添加项目根目录到Python路径
-sys.path.append(str(Path(__file__).parent.parent))
-
 from handler.chat_handler import ChatHandler
 from handler.command_handler import CommandHandler
 from handler.color_handler import ColorHandler
@@ -51,7 +49,8 @@ class DeepSeekCLI:
                 print(ColorHandler.system_text(f"已收到{len(lines)}行输入"))
                 self.dialog_handler.multi_mode = False  # 自动退出多行模式
             else:
-                user_input = input(ColorHandler.user_text("用户: "))
+                prompt = f'[{self.dialog_handler.model}][{"流式" if self.command_handler.stream_mode else "非流式"}] > '
+                user_input = input(ColorHandler.user_text(prompt))
             
             DebugHandler.debug(f"用户输入: {user_input}")
             
@@ -77,7 +76,13 @@ class DeepSeekCLI:
             assistant_reply = self.dialog_handler.get_assistant_reply(stream=self.command_handler.stream_mode)
             
             if not self.command_handler.stream_mode:
-                print(ColorHandler.assistant_text("助手: " + assistant_reply))
+                if '最终回答：' in assistant_reply:
+                    reasoning, answer = assistant_reply.split('最终回答：', 1)
+                    print(ColorHandler.reasoning_text(f"推理过程[{self.dialog_handler.model}]：" + reasoning))
+                    print(ColorHandler.assistant_text(f"最终回答[{self.dialog_handler.model}]：" + answer))
+                else:
+                    print(ColorHandler.assistant_text(f"助手[{self.dialog_handler.model}]：" + assistant_reply))
+                DebugHandler.debug("分阶段输出完成")
                 DebugHandler.debug("非流式模式回复完成")
 
 def main():

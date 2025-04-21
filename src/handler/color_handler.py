@@ -31,24 +31,56 @@ class ColorHandler:
     @staticmethod
     def user_text(text: str) -> str:
         """用户文本颜色 (青色)"""
+        if text is None:
+            text = ''
         return f"{Fore.CYAN}{text}{Style.RESET_ALL}"
     
     @staticmethod
     def assistant_text(text: str) -> str:
-        """助手文本颜色 (绿色)"""
-        return f"{Fore.GREEN}{text}{Style.RESET_ALL}"
+        """助手文本颜色 (品红)"""
+        if COLOR_ENABLED:
+            return f"{Fore.MAGENTA}{text}{Style.RESET_ALL}"
+        return text
+
+    @staticmethod
+    def reasoning_text(text: str) -> str:
+        """推理文本颜色 (黄色)"""
+        if COLOR_ENABLED:
+            return f"{Fore.YELLOW}{text}{Style.RESET_ALL}"
+        return text
     
     @staticmethod
     def system_text(text: str) -> str:
         """系统文本颜色 (黄色)"""
+        if text is None:
+            text = ''
         return f"{Fore.YELLOW}{text}{Style.RESET_ALL}"
     
     @staticmethod
+    def reasoning_text(text: str) -> str:
+        """推理文本颜色 (灰黑色)"""
+        if text is None:
+            text = ''
+        return f"{Fore.LIGHTBLACK_EX}{text}{Style.RESET_ALL}"
+
+    @staticmethod
     def error_text(text: str) -> str:
         """错误文本颜色 (红色)"""
+        if text is None:
+            text = ''
         return f"{Fore.RED}{text}{Style.RESET_ALL}"
     
     @staticmethod
     def highlight_text(text: str) -> str:
         """高亮文本 (亮白色)"""
+        if text is None:
+            text = ''
         return f"{Style.BRIGHT}{text}{Style.RESET_ALL}"
+    
+    @staticmethod
+    def stream_mode_text(text: str) -> str:
+        return f"\033[92m{text}\033[0m"  # 亮绿色
+
+    @staticmethod
+    def non_stream_mode_text(text: str) -> str:
+        return f"\033[93m{text}\033[0m"  # 亮黄色
