@@ -76,12 +76,12 @@ class DeepSeekCLI:
             assistant_reply = self.dialog_handler.get_assistant_reply(stream=self.command_handler.stream_mode)
             
             if not self.command_handler.stream_mode:
-                if '最终回答：' in assistant_reply:
-                    reasoning, answer = assistant_reply.split('最终回答：', 1)
-                    print(ColorHandler.reasoning_text(f"推理过程[{self.dialog_handler.model}]：" + reasoning))
-                    print(ColorHandler.assistant_text(f"最终回答[{self.dialog_handler.model}]：" + answer))
+                if '最终回复：' in assistant_reply:
+                    reasoning, answer = assistant_reply.split('最终回复：', 1)
+                    print(ColorHandler.reasoning_text(f"推理过程[{self.dialog_handler.model}]：\n" + reasoning))
+                    print(ColorHandler.assistant_text(f"\n最终回复[{self.dialog_handler.model}]：\n" + answer))
                 else:
-                    print(ColorHandler.assistant_text(f"助手[{self.dialog_handler.model}]：" + assistant_reply))
+                    print(ColorHandler.assistant_text(f"助手[{self.dialog_handler.model}]：\n" + assistant_reply))
                 DebugHandler.debug("分阶段输出完成")
                 DebugHandler.debug("非流式模式回复完成")
 

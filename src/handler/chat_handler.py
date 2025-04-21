@@ -40,6 +40,10 @@ class ChatHandler:
                     full_reply = io.StringIO()
                     DebugHandler.debug(f"开始获取流式回复，使用模型: {self.model}")
                     try:
+                        # 添加标志变量，用于跟踪是否已经输出了第一个推理块和内容块的前缀
+                        first_reasoning_chunk = True
+                        first_content_chunk = True
+                        
                         for chunk in self.api.chat_completion_stream(
                             messages=self.messages,
                             model=self.model,
@@ -59,6 +63,8 @@ class ChatHandler:
                             content_chunk = first_choice['delta'].get('content', '')
                             
                             # 空值检查和处理
+                            reasoning_chunk = reasoning_chunk or ''
+                            content_chunk = content_chunk or ''
                             DebugHandler.debug(f"获取推理内容: {repr(reasoning_chunk)} (长度{len(reasoning_chunk)}), 正式内容: {repr(content_chunk)} (长度{len(content_chunk)})")
                             if not reasoning_chunk and not content_chunk:
                                 continue
@@ -67,9 +73,21 @@ class ChatHandler:
                             
                             # 打印推理过程（灰色）和正式回答（原色）
                             if self.model != 'deepseek-chat' and reasoning_chunk:
-                                print(ColorHandler.reasoning_text(f"{reasoning_chunk}"), end="", flush=True)
+                                # 只在第一个推理块前添加前缀
+                                if first_reasoning_chunk:
+                                    print(ColorHandler.reasoning_text(f"推理过程：\n{reasoning_chunk}"), end="", flush=True)
+                                    first_reasoning_chunk = False
+                                else:
+                                    print(ColorHandler.reasoning_text(reasoning_chunk), end="", flush=True)
                             if content_chunk:
-                                print(ColorHandler.assistant_text(f"{content_chunk}"), end="", flush=True)
+                                # 只在第一个内容块前添加前缀
+                                if first_content_chunk:
+                                    if self.model != 'deepseek-chat':
+                                        print("\n")
+                                    print(ColorHandler.assistant_text(f"最终回复：\n{content_chunk}"), end="", flush=True)
+                                    first_content_chunk = False
+                                else:
+                                    print(ColorHandler.assistant_text(content_chunk), end="", flush=True)
                             
                             full_reply.write(content_chunk if self.model == 'deepseek-chat' else reasoning_chunk + content_chunk)
                         
@@ -96,10 +114,20 @@ class ChatHandler:
                     if not self.validate_response_structure(response, stream=False):
                         raise ValueError("无效的API响应结构")
                     message = response['choices'][0]['message']
-                    assistant_reply = message.get('content', '') if self.model == 'deepseek-chat' else message.get('reasoning_content', '') + message.get('content', '')
+                    reasoning_content = message.get('reasoning_content', '')
+                    content = message.get('content', '')
+                    
+                    # 根据模型类型构建回复内容
+                    if self.model == 'deepseek-chat':
+                        assistant_reply = content
+                    else:
+                        # 添加分隔符，与流式模式保持一致
+                        assistant_reply = reasoning_content + '最终回复：' + content
+                    
                     # 处理空响应的情况
-                    if not assistant_reply:
+                    if not assistant_reply.strip():
                         assistant_reply = "抱歉，未能获取有效回复，请稍后重试"
+                    
                     self.messages.append({"role": "assistant", "content": assistant_reply})
                     DebugHandler.debug("非流式回复完成")
                     return assistant_reply
@@ -139,9 +167,16 @@ class ChatHandler:
             if isinstance(validator, list):
                 if not isinstance(data[key], list):
                     return False
-                for item in data[key]:
-                    if not self._check_data_structure(item, validator[0]):
+                # 列表验证器的第一个元素是验证函数，第二个元素是子结构
+                # 先验证列表本身
+                if len(validator) > 0 and callable(validator[0]):
+                    if not validator[0](data[key]):
                         return False
+                # 如果有子结构，则验证列表中的每个元素
+                if len(validator) > 1 and isinstance(validator[1], dict):
+                    for item in data[key]:
+                        if not self._check_data_structure(item, validator[1]):
+                            return False
             elif callable(validator):
                 if not validator(data[key]):
                     return False
