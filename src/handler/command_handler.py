@@ -32,7 +32,8 @@ class CommandHandler:
             '/debug': self.handle_debug,
             '/multi': self.handle_multi,
             '/model': self.handle_model,
-            '/reset': self.handle_reset
+            '/reset': self.handle_reset,
+            '/stop': self.handle_interrupt
         }
         self.stream_mode = True
     
@@ -106,6 +107,10 @@ class CommandHandler:
     说明: 清空当前的对话历史，开始一个全新的会话
     用法: 直接输入 /reset
 
+/stop - 中断当前输出
+    说明: 在流式输出过程中立即停止输出
+    用法: 直接输入 /stop
+
 /help - 显示此帮助信息
     说明: 显示所有可用命令的详细说明
     用法: 直接输入 /help
@@ -170,6 +175,13 @@ class CommandHandler:
         if self.chat_handler:
             self.chat_handler.reset_conversation()
             print(ColorHandler.system_text("对话历史已重置，开始新的对话"))
+        return True
+        
+    def handle_interrupt(self) -> bool:
+        """中断当前输出"""
+        if self.chat_handler:
+            self.chat_handler.interrupt_output()
+            print(ColorHandler.system_text("已发送中断信号"))
         return True
     
     def add_command(self, command_name: str, command_func):

@@ -41,6 +41,7 @@ class DeepSeekCLI:
         print(ColorHandler.system_text("  /multi  - 进入多行输入模式（使用/eof结束输入）"))
         print(ColorHandler.system_text("  /model  - 切换AI模型（DeepSeek Chat/Reasoner）"))
         print(ColorHandler.system_text("  /reset  - 重置对话历史"))
+        print(ColorHandler.system_text("  /stop   - 中断当前输出（也可使用Ctrl+S快捷键）"))
         print(ColorHandler.system_text("  /debug  - 切换调试模式"))
         print(ColorHandler.system_text("==========================="))
         

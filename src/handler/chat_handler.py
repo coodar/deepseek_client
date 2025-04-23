@@ -32,6 +32,7 @@ class ChatHandler:
         self.temperature = DEFAULT_TEMPERATURE
         self.messages: List[Dict[str, str]] = []
         self.multi_mode = False
+        self.interrupt_flag = False
     
     def add_user_message(self, content: str) -> None:
         """添加用户消息到对话历史"""
@@ -45,12 +46,14 @@ class ChatHandler:
         """
         from .error_handler import ErrorHandler
         from .debug_handler import DebugHandler
+        from .input_handler import InputHandler
         error_handler = ErrorHandler()
         retry_count = 0
         
         while True:
             try:
                 if stream:
+                    import sys
                     full_reply = io.StringIO()
                     DebugHandler.debug(f"开始获取流式回复，使用模型: {self.model}")
                     try:
@@ -58,11 +61,25 @@ class ChatHandler:
                         first_reasoning_chunk = True
                         first_content_chunk = True
                         
+                        # 初始化输入处理器，用于检测用户输入
+                        input_handler = InputHandler()
+                        input_handler.start_listening()
+                        DebugHandler.debug("已启动输入监听器")
+                        
                         for chunk in self.api.chat_completion_stream(
                             messages=self.messages,
                             model=self.model,
                             temperature=self.temperature
                         ):
+                            # 检查中断标志或输入中的/stop命令
+                            if self.interrupt_flag or input_handler.check_for_stop_command():
+                                DebugHandler.debug("检测到中断标志或/stop命令，停止输出")
+                                print(ColorHandler.system_text("\n[输出已中断]\n"))
+                                self.interrupt_flag = False  # 重置中断标志
+                                # 确保在中断后停止输入监听器
+                                input_handler.stop_listening()
+                                break
+                                
                             if not isinstance(chunk, dict):
                                 DebugHandler.debug("无效的chunk类型，跳过")
                                 continue
@@ -89,19 +106,24 @@ class ChatHandler:
                             if self.model != 'deepseek-chat' and reasoning_chunk:
                                 # 只在第一个推理块前添加前缀
                                 if first_reasoning_chunk:
-                                    print(ColorHandler.reasoning_text(f"推理过程：\n{reasoning_chunk}"), end="", flush=True)
+                                    sys.stdout.write(ColorHandler.reasoning_text(f"推理过程：\n{reasoning_chunk}"))
+                                    sys.stdout.flush()
                                     first_reasoning_chunk = False
                                 else:
-                                    print(ColorHandler.reasoning_text(reasoning_chunk), end="", flush=True)
+                                    sys.stdout.write(ColorHandler.reasoning_text(reasoning_chunk))
+                                    sys.stdout.flush()
                             if content_chunk:
                                 # 只在第一个内容块前添加前缀
                                 if first_content_chunk:
                                     if self.model != 'deepseek-chat':
-                                        print("\n")
-                                    print(ColorHandler.assistant_text(f"最终回复：\n{content_chunk}"), end="", flush=True)
+                                        sys.stdout.write("\n")
+                                        sys.stdout.flush()
+                                    sys.stdout.write(ColorHandler.assistant_text(f"最终回复：\n{content_chunk}"))
+                                    sys.stdout.flush()
                                     first_content_chunk = False
                                 else:
-                                    print(ColorHandler.assistant_text(content_chunk), end="", flush=True)
+                                    sys.stdout.write(ColorHandler.assistant_text(content_chunk))
+                                    sys.stdout.flush()
                             
                             full_reply.write(content_chunk if self.model == 'deepseek-chat' else reasoning_chunk + content_chunk)
                         
@@ -113,10 +135,21 @@ class ChatHandler:
                         print()
                         self.messages.append({"role": "assistant", "content": full_reply_str})
                         DebugHandler.debug("流式回复完成")
+                        
+                        # 停止输入监听器
+                        input_handler.stop_listening()
+                        DebugHandler.debug("已停止输入监听器")
+                        
                         return full_reply_str
                     except Exception as e:
                         # 流式请求出错，记录错误并继续处理
                         DebugHandler.debug(f"流式请求出错: {str(e)}")
+                        # 确保停止输入监听器
+                        try:
+                            input_handler.stop_listening()
+                            DebugHandler.debug("异常情况下已停止输入监听器")
+                        except Exception as input_ex:
+                            DebugHandler.debug(f"停止输入监听器时出错: {str(input_ex)}")
                         raise e
                 else:
                     DebugHandler.debug(f"开始获取非流式回复，使用模型: {self.model}")
@@ -204,6 +237,11 @@ class ChatHandler:
     def reset_conversation(self) -> None:
         """重置对话历史"""
         self.messages = []
+        
+    def interrupt_output(self) -> None:
+        """中断当前输出"""
+        self.interrupt_flag = True
+        DebugHandler.debug("设置中断标志为True")
         
     def handle_multi(self) -> bool:
         """切换多行输入模式"""
