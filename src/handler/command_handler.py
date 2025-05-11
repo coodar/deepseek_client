@@ -3,7 +3,9 @@
 """
 import json
 from typing import List, Dict
-
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
 # 尝试兼容包模式和开发模式的导入
 try:
     # 包模式导入
@@ -21,7 +23,7 @@ except ImportError:
     from src.handler.color_handler import ColorHandler
 
 DebugHandler.debug(f"json模块已导入，版本: {json.__version__}")
-
+console = Console()
 class CommandHandler:
     def __init__(self, chat_handler=None):
         self.chat_handler = chat_handler
@@ -35,7 +37,7 @@ class CommandHandler:
             '/reset': self.handle_reset,
             '/stop': self.handle_interrupt
         }
-        self.stream_mode = True
+        self.stream_mode = False
     
     def handle_command(self, user_input: str) -> bool:
         """
@@ -80,42 +82,42 @@ class CommandHandler:
         
         help_text = """
 可用命令:
-/quit - 退出程序
+[cyan]/quit[/cyan] - 退出程序
     说明: 结束当前会话并退出程序
     用法: 直接输入 /quit
 
-/stream - 切换流式输出模式
+[cyan]/stream[/cyan] - 切换流式输出模式
     说明: 开启或关闭AI回复的流式输出
     用法: 直接输入 /stream
     当前状态: %s
 
-/debug - 切换调试模式
+[cyan]/debug[/cyan] - 切换调试模式
     说明: 开启或关闭调试信息的显示
     用法: 直接输入 /debug
     当前状态: %s
 
-/multi - 切换多行输入模式
+[cyan]/multi[/cyan] - 切换多行输入模式
     说明: 进入多行输入模式，可以输入多行文本
     用法: 输入 /multi 进入多行模式，输入内容后使用 /eof 结束输入
 
-/model - 切换AI模型
+[cyan]/model[/cyan] - 切换AI模型
     说明: 在可用模型之间切换
     用法: 输入 /model 然后输入数字或模型ID
     当前模型: %s
 
-/reset - 重置对话历史
+[cyan]/reset[/cyan] - 重置对话历史
     说明: 清空当前的对话历史，开始一个全新的会话
     用法: 直接输入 /reset
 
-/stop - 中断当前输出
+[cyan]/stop[/cyan] - 中断当前输出
     说明: 在流式输出过程中立即停止输出
     用法: 直接输入 /stop
 
-/help - 显示此帮助信息
+[cyan]/help[/cyan] - 显示此帮助信息
     说明: 显示所有可用命令的详细说明
     用法: 直接输入 /help
 """ % ('开启' if self.stream_mode else '关闭', '开启' if DebugHandler.is_debug_enabled() else '关闭', model_display_name)
-        print(ColorHandler.system_text(help_text))
+        console.print(Panel(help_text, title="详细帮助信息", border_style="blue", expand=False))
         return True
         
     def handle_debug(self) -> bool:

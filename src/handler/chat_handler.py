@@ -21,7 +21,9 @@ except ImportError:
     from src.api.deepseek_api import DeepSeekAPI
     from src.handler.color_handler import ColorHandler
     from src.config.setting import DEFAULT_MODEL, DEFAULT_TEMPERATURE
-
+from rich.markdown import Markdown
+from rich.console import Console
+console = Console()
 class ChatHandler:
     def __init__(self):
         """
@@ -33,12 +35,11 @@ class ChatHandler:
         self.messages: List[Dict[str, str]] = []
         self.multi_mode = False
         self.interrupt_flag = False
-    
     def add_user_message(self, content: str) -> None:
         """添加用户消息到对话历史"""
         self.messages.append({"role": "user", "content": content})
     
-    def get_assistant_reply(self, stream: bool = True) -> str:
+    def get_assistant_reply(self, stream: bool = False) -> str:
         """
         获取助手回复
         :param stream: 是否使用流式输出
@@ -106,24 +107,21 @@ class ChatHandler:
                             if self.model != 'deepseek-chat' and reasoning_chunk:
                                 # 只在第一个推理块前添加前缀
                                 if first_reasoning_chunk:
-                                    sys.stdout.write(ColorHandler.reasoning_text(f"推理过程：\n{reasoning_chunk}"))
-                                    sys.stdout.flush()
+                                    console.print(f"推理过程：\n")
                                     first_reasoning_chunk = False
-                                else:
-                                    sys.stdout.write(ColorHandler.reasoning_text(reasoning_chunk))
-                                    sys.stdout.flush()
+                                sys.stdout.write(ColorHandler.reasoning_text(reasoning_chunk))
+                                sys.stdout.flush()
                             if content_chunk:
                                 # 只在第一个内容块前添加前缀
                                 if first_content_chunk:
                                     if self.model != 'deepseek-chat':
                                         sys.stdout.write("\n")
                                         sys.stdout.flush()
-                                    sys.stdout.write(ColorHandler.assistant_text(f"最终回复：\n{content_chunk}"))
-                                    sys.stdout.flush()
+                                    console.print(f"最终回复：\n")
                                     first_content_chunk = False
-                                else:
-                                    sys.stdout.write(ColorHandler.assistant_text(content_chunk))
-                                    sys.stdout.flush()
+
+                                sys.stdout.write(ColorHandler.assistant_text(content_chunk))
+                                sys.stdout.flush()
                             
                             full_reply.write(content_chunk if self.model == 'deepseek-chat' else reasoning_chunk + content_chunk)
                         
@@ -141,6 +139,7 @@ class ChatHandler:
                         DebugHandler.debug("已停止输入监听器")
                         
                         return full_reply_str
+
                     except Exception as e:
                         # 流式请求出错，记录错误并继续处理
                         DebugHandler.debug(f"流式请求出错: {str(e)}")
@@ -178,7 +177,6 @@ class ChatHandler:
                     self.messages.append({"role": "assistant", "content": assistant_reply})
                     DebugHandler.debug("非流式回复完成")
                     return assistant_reply
-                
             except Exception as e:
                 full_reply_str = ''
                 error_info = error_handler.handle_error(e, retry_count)

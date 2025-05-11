@@ -31,44 +31,89 @@ class InputHandler:
     def _input_worker(self):
         """输入线程工作函数，持续监听用户输入"""
         DebugHandler.debug("输入监听线程已启动")
+        line_buffer = ""  # 用于存储当前行输入的字符
+        byte_buffer = b""  # 用于处理多字节UTF-8字符
         while not self.stop_event.is_set():
             if sys.stdin.isatty():  # 确保在终端环境中运行
                 try:
-                    # 使用非阻塞方式检查是否有输入
                     if os.name == 'nt':  # Windows
                         import msvcrt
                         if msvcrt.kbhit():
-                            char = msvcrt.getch().decode('utf-8')
-                            self.input_queue.put(char)
+                            char_bytes = msvcrt.getch()
+                            try:
+                                char = char_bytes.decode('utf-8')
+                                self.input_queue.put(char)
+                                if char == '\r' or char == '\n':
+                                    line_buffer = ""
+                                elif char == '\x08': # Backspace for Windows
+                                    # 确保在Windows环境下也正确处理退格键
+                                    if line_buffer:
+                                        line_buffer = line_buffer[:-1]
+                                        self.input_queue.put('<BACKSPACE>')
+                                        DebugHandler.debug(f"Windows退格后的行缓冲区: '{line_buffer}'")
+                                else:
+                                    line_buffer += char
+                            except UnicodeDecodeError:
+                                # Handle potential decoding errors if necessary
+                                pass 
                     else:  # Unix/Linux/MacOS
                         import select
                         import termios
                         import tty
-                        
-                        # 保存终端设置
                         old_settings = termios.tcgetattr(sys.stdin)
                         try:
-                            # 设置终端为raw模式，但不回显输入字符
                             tty.setraw(sys.stdin.fileno(), termios.TCSANOW)
-                            
-                            # 检查是否有输入可读取
                             if select.select([sys.stdin], [], [], 0)[0]:
-                                char = sys.stdin.read(1)
-                                # 将字符放入队列，但不回显
-                                self.input_queue.put(char)
-                                # 不再打印回车，避免干扰输出
-                                if char == '\r' or char == '\n':
-                                    # 只恢复和设置终端模式，不打印任何内容
-                                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-                                    # 重新设置raw模式
-                                    tty.setraw(sys.stdin.fileno(), termios.TCSANOW)
+                                raw_byte = os.read(sys.stdin.fileno(), 1)
+                                if raw_byte == b'\x7f' or raw_byte == b'\b':  # 退格 (DEL or Backspace)
+                                    # 处理Unicode字符退格
+                                    if line_buffer:
+                                        DebugHandler.debug(f"退格前的行缓冲区: '{line_buffer}' (字节长度: {len(line_buffer.encode('utf-8'))})")
+                                        DebugHandler.debug(f"退格前的字节缓冲区: {byte_buffer} (长度: {len(byte_buffer)})")
+                                        
+                                        # 直接使用Python字符串切片删除最后一个字符
+                                        line_buffer = line_buffer[:-1]
+                                        self.input_queue.put('<BACKSPACE>')
+                                        byte_buffer = b""  # 清空字节缓冲区
+                                        # 强制刷新输入队列和缓冲区
+                                        self.input_queue.queue.clear()
+                                        
+                                        DebugHandler.debug(f"退格后的行缓冲区: '{line_buffer}' (字节长度: {len(line_buffer.encode('utf-8'))})")
+                                        DebugHandler.debug(f"退格后的字节缓冲区: {byte_buffer} (长度: {len(byte_buffer)})")
+                                        DebugHandler.debug("----------------------------------------")
+                                elif raw_byte == b'\r' or raw_byte == b'\n': # Enter
+                                    self.input_queue.put(raw_byte.decode('utf-8', errors='ignore'))
+                                    line_buffer = ""
+                                    byte_buffer = b""
+                                    # Restore terminal settings immediately after Enter for some terminals
+                                    # termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                                    # tty.setraw(sys.stdin.fileno(), termios.TCSANOW)
+                                else:
+                                    byte_buffer += raw_byte
+                                    try:
+                                        # Try to decode the byte buffer
+                                        decoded_char = byte_buffer.decode('utf-8')
+                                        # If successful, it's a complete character (or multiple)
+                                        for char_part in decoded_char:
+                                            self.input_queue.put(char_part)
+                                            line_buffer += char_part
+                                        byte_buffer = b""  # Clear buffer after successful decode
+                                    except UnicodeDecodeError:
+                                        # Not enough bytes for a complete character, wait for more
+                                        if len(byte_buffer) > 4: # Avoid infinitely growing buffer for invalid sequences
+                                            byte_buffer = b"" # Reset if too long and still undecodable
+                                        pass
                         finally:
-                            # 恢复终端设置
                             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                            time.sleep(0.0001) # 将轮询间隔缩短至0.1ms
+                            # 强制刷新输出缓冲区
+                            sys.stdout.flush()
+                            os.fsync(sys.stdout.fileno())
+                            # 清空输入缓冲区残留数据
+                            if os.name != 'nt':
+                                termios.tcflush(sys.stdin, termios.TCIFLUSH)
                 except Exception as e:
-                    DebugHandler.debug(f"输入检测异常: {str(e)}")
-            time.sleep(0.1)  # 短暂休眠以减少CPU使用
-        DebugHandler.debug("输入监听线程已停止")
+                    DebugHandler.debug("输入监听线程已停止")
     
     def start_listening(self):
         """开始监听用户输入"""
