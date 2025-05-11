@@ -3,6 +3,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+import readline
 # 添加项目根目录到Python路径以兼容开发模式和包模式
 try:
     # 尝试直接导入（包模式）

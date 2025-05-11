@@ -4,7 +4,7 @@ import os
 import threading
 import queue
 import time
-
+import readline
 # 尝试兼容包模式和开发模式的导入
 try:
     # 包模式导入
