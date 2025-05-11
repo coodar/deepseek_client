@@ -67,10 +67,7 @@ class InputHandler:
                                 raw_byte = os.read(sys.stdin.fileno(), 1)
                                 if raw_byte == b'\x7f' or raw_byte == b'\b':  # 退格 (DEL or Backspace)
                                     # 处理Unicode字符退格
-                                    if line_buffer:
-                                        DebugHandler.debug(f"退格前的行缓冲区: '{line_buffer}' (字节长度: {len(line_buffer.encode('utf-8'))})")
-                                        DebugHandler.debug(f"退格前的字节缓冲区: {byte_buffer} (长度: {len(byte_buffer)})")
-                                        
+                                    if line_buffer:                                        
                                         # 直接使用Python字符串切片删除最后一个字符
                                         line_buffer = line_buffer[:-1]
                                         self.input_queue.put('<BACKSPACE>')
@@ -78,9 +75,6 @@ class InputHandler:
                                         # 强制刷新输入队列和缓冲区
                                         self.input_queue.queue.clear()
                                         
-                                        DebugHandler.debug(f"退格后的行缓冲区: '{line_buffer}' (字节长度: {len(line_buffer.encode('utf-8'))})")
-                                        DebugHandler.debug(f"退格后的字节缓冲区: {byte_buffer} (长度: {len(byte_buffer)})")
-                                        DebugHandler.debug("----------------------------------------")
                                 elif raw_byte == b'\r' or raw_byte == b'\n': # Enter
                                     self.input_queue.put(raw_byte.decode('utf-8', errors='ignore'))
                                     line_buffer = ""
