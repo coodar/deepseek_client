@@ -11,6 +11,7 @@ try:
     # 包模式导入
     from handler.debug_handler import DebugHandler
     from handler.color_handler import ColorHandler
+    from config.setting import AVAILABLE_MODELS
 except ImportError:
     # 开发模式导入
     import sys
@@ -21,6 +22,7 @@ except ImportError:
     
     from src.handler.debug_handler import DebugHandler
     from src.handler.color_handler import ColorHandler
+    from src.config.setting import AVAILABLE_MODELS
 
 DebugHandler.debug(f"json模块已导入，版本: {json.__version__}")
 console = Console()
@@ -76,7 +78,6 @@ class CommandHandler:
         
     def handle_help(self) -> bool:
         """显示帮助信息"""
-        from config.setting import AVAILABLE_MODELS
         current_model = self.chat_handler.model if self.chat_handler else "deepseek-chat"
         model_display_name = AVAILABLE_MODELS.get(current_model, current_model)
         
@@ -136,7 +137,6 @@ class CommandHandler:
         
     def handle_model(self) -> bool:
         """切换模型"""
-        from config.setting import AVAILABLE_MODELS
         if self.chat_handler:
             current_model = self.chat_handler.model
             print(ColorHandler.system_text(f"当前模型: {AVAILABLE_MODELS.get(current_model, current_model)}"))
