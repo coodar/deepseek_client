@@ -40,6 +40,24 @@ class CommandHandler:
             '/stop': self.handle_interrupt
         }
         self.stream_mode = False
+        
+        # 初始化命令自动补全
+        self._init_command_completion()
+        
+    def _init_command_completion(self):
+        """初始化命令自动补全功能"""
+        import readline
+        
+        def complete(text, state):
+            """命令补全函数"""
+            commands = [cmd for cmd in self.commands.keys() if cmd.startswith(text)]
+            DebugHandler.debug(f"命令补全: 输入 '{text}', 匹配到 {len(commands)} 个命令")
+            return commands[state] if state < len(commands) else None
+            
+        readline.set_completer(complete)
+        readline.parse_and_bind("tab: complete")
+        readline.set_completer_delims(' ')
+        DebugHandler.debug(f"已初始化命令补全功能，可用命令: {list(self.commands.keys())}")
     
     def handle_command(self, user_input: str) -> bool:
         """
@@ -139,35 +157,16 @@ class CommandHandler:
         """切换模型"""
         if self.chat_handler:
             current_model = self.chat_handler.model
-            print(ColorHandler.system_text(f"当前模型: {AVAILABLE_MODELS.get(current_model, current_model)}"))
-            print(ColorHandler.system_text("可用模型:"))
+            model_list = list(AVAILABLE_MODELS.keys())
             
-            for index, (model_id, model_name) in enumerate(AVAILABLE_MODELS.items(), start=1):
-                print(ColorHandler.system_text(f"  {index}. {model_name} ({model_id})"))
-            
-            print(ColorHandler.system_text("请输入数字或模型ID:"))
-            model_input = input(ColorHandler.user_text("> ")).strip()
-            
-            selected_model = None
-            if model_input.isdigit():
-                index = int(model_input) - 1
-                model_list = list(AVAILABLE_MODELS.keys())
-                if 0 <= index < len(model_list):
-                    selected_model = model_list[index]
-                else:
-                    print(ColorHandler.system_text(f"无效的数字选项: {model_input}"))
-                    return True
-            elif model_input in AVAILABLE_MODELS:
-                selected_model = model_input
+            if current_model in model_list:
+                current_index = model_list.index(current_model)
+                next_index = (current_index + 1) % len(model_list)
+                selected_model = model_list[next_index]
             else:
-                print(ColorHandler.system_text(f"无效的模型ID或数字: {model_input}"))
-                return True
-            
-            if selected_model and selected_model in AVAILABLE_MODELS:
-                self.chat_handler.model = selected_model
-            else:
-                print(ColorHandler.system_text(f"无效的模型配置: {selected_model}"))
-                return True
+                selected_model = model_list[0]
+                
+            self.chat_handler.model = selected_model
             print(ColorHandler.system_text(f"已切换到模型: {AVAILABLE_MODELS[selected_model]}"))
             print(ColorHandler.system_text("对话历史已保留，您可以继续之前的对话"))
         return True
